@@ -59,14 +59,15 @@ class FlexFieldsSerializerMixin(object):
         }
 
     def to_representation(self, instance):
+        validated_data = super().to_representation(instance)
         if not self._flex_fields_rep_applied:
             self.apply_flex_fields(self.fields, self._flex_options_rep_only)
             self._flex_fields_rep_applied = True
-        return super().to_representation(instance)
+        return validated_data
 
     def get_fields(self):
         fields = super().get_fields()
-        self.apply_flex_fields(fields, self._flex_options_base)
+        self.apply_flex_fields(fields, self._flex_options_all)
         return fields
 
     def apply_flex_fields(self, fields, flex_options):
