@@ -1,8 +1,9 @@
 import copy
 import importlib
 from typing import List, Optional, Tuple
-
+from collections import OrderedDict
 from rest_framework import serializers
+from django.utils.module_loading import import_string
 
 from rest_flex_fields import (
     EXPAND_PARAM,
@@ -66,7 +67,16 @@ class FlexFieldsSerializerMixin(object):
         return validated_data
 
     def get_fields(self):
-        fields = super().get_fields()
+        fields = OrderedDict()
+
+        for field_name, (field_class_path, field_class_init_params) in self._undeclared_fields.items():
+            try:
+                fields[field_name] = import_string(field_class_path)(**field_class_init_params)
+            except ImportError:
+                pass
+        
+        list(fields.setdefault(key, value) for key, value in super().get_fields().items())
+    
         self.apply_flex_fields(fields, self._flex_options_all)
         return fields
 
