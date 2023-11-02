@@ -67,6 +67,9 @@ class FlexFieldsSerializerMixin(object):
         return validated_data
 
     def get_fields(self):
+        if not hasattr(self, '_undeclared_fields'):
+            return super().get_fields()
+
         fields = OrderedDict()
 
         for field_name, (field_class_path, field_class_init_params) in self._undeclared_fields.items():
@@ -98,7 +101,6 @@ class FlexFieldsSerializerMixin(object):
             fields[name] = self._make_expanded_field_serializer(
                 name, next_expand_fields, next_sparse_fields, next_omit_fields
             )
-
         return fields
 
     def _make_expanded_field_serializer(
