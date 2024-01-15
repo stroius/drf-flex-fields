@@ -1,4 +1,5 @@
 *.pyc
+.idea
 build/
 local-development.txt
 local-dev.txt
