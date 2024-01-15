@@ -52,11 +52,11 @@ class FlexFieldsSerializerMixin(object):
         }
         self._flex_options_all = {
             "expand": self._flex_options_base["expand"]
-            + self._flex_options_rep_only["expand"],
+                      + self._flex_options_rep_only["expand"],
             "fields": self._flex_options_base["fields"]
-            + self._flex_options_rep_only["fields"],
+                      + self._flex_options_rep_only["fields"],
             "omit": self._flex_options_base["omit"]
-            + self._flex_options_rep_only["omit"],
+                    + self._flex_options_rep_only["omit"],
         }
 
     def to_representation(self, instance):
@@ -77,9 +77,9 @@ class FlexFieldsSerializerMixin(object):
                 fields[field_name] = import_string(field_class_path)(**field_class_init_params)
             except ImportError:
                 pass
-        
+
         list(fields.setdefault(key, value) for key, value in super().get_fields().items())
-    
+
         self.apply_flex_fields(fields, self._flex_options_all)
         return fields
 
@@ -89,12 +89,12 @@ class FlexFieldsSerializerMixin(object):
         omit_fields, next_omit_fields = split_levels(flex_options["omit"])
 
         for field_name in self._get_fields_names_to_remove(
-            fields, omit_fields, sparse_fields, next_omit_fields
+                fields, omit_fields, sparse_fields, next_omit_fields
         ):
             fields.pop(field_name)
 
         for name in self._get_expanded_field_names(
-            expand_fields, omit_fields, sparse_fields, next_omit_fields
+                expand_fields, omit_fields, sparse_fields, next_omit_fields
         ):
             self.expanded_fields.append(name)
 
@@ -104,7 +104,7 @@ class FlexFieldsSerializerMixin(object):
         return fields
 
     def _make_expanded_field_serializer(
-        self, name, nested_expand, nested_fields, nested_omit
+            self, name, nested_expand, nested_fields, nested_omit
     ):
         """
         Returns an instance of the dynamically created nested serializer.
@@ -157,7 +157,7 @@ class FlexFieldsSerializerMixin(object):
         raise Exception(error)
 
     def _import_serializer_class(
-        self, path: str, class_name: str
+            self, path: str, class_name: str
     ) -> Tuple[Optional[str], Optional[str]]:
         try:
             module = importlib.import_module(path)
@@ -174,11 +174,11 @@ class FlexFieldsSerializerMixin(object):
             return None, "No class %s class found in module %s" % (path, class_name)
 
     def _get_fields_names_to_remove(
-        self,
-        current_fields: List[str],
-        omit_fields: List[str],
-        sparse_fields: List[str],
-        next_level_omits: List[str],
+            self,
+            current_fields: List[str],
+            omit_fields: List[str],
+            sparse_fields: List[str],
+            next_level_omits: List[str],
     ) -> List[str]:
         """
         Remove fields that are found in omit list, and if sparse names
@@ -201,11 +201,11 @@ class FlexFieldsSerializerMixin(object):
         return to_remove
 
     def _should_field_exist(
-        self,
-        field_name: str,
-        omit_fields: List[str],
-        sparse_fields: List[str],
-        next_level_omits: List[str],
+            self,
+            field_name: str,
+            omit_fields: List[str],
+            sparse_fields: List[str],
+            next_level_omits: List[str],
     ) -> bool:
         """
         Next level omits take form of:
@@ -225,11 +225,11 @@ class FlexFieldsSerializerMixin(object):
             return True
 
     def _get_expanded_field_names(
-        self,
-        expand_fields: List[str],
-        omit_fields: List[str],
-        sparse_fields: List[str],
-        next_level_omits: List[str],
+            self,
+            expand_fields: List[str],
+            omit_fields: List[str],
+            sparse_fields: List[str],
+            next_level_omits: List[str],
     ) -> List[str]:
         if len(expand_fields) == 0:
             return []
@@ -244,7 +244,7 @@ class FlexFieldsSerializerMixin(object):
                 continue
 
             if not self._should_field_exist(
-                name, omit_fields, sparse_fields, next_level_omits
+                    name, omit_fields, sparse_fields, next_level_omits
             ):
                 continue
 
