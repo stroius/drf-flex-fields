@@ -4,6 +4,9 @@ from typing import List, Optional, Tuple
 from collections import OrderedDict
 from rest_framework import serializers
 from django.utils.module_loading import import_string
+from rest_framework.fields import SkipField
+from rest_framework.relations import HyperlinkedRelatedField, PKOnlyObject
+from rest_framework.utils.field_mapping import get_relation_kwargs, get_nested_relation_kwargs
 
 from rest_flex_fields import (
     EXPAND_PARAM,
@@ -29,13 +32,11 @@ class FlexFieldsSerializerMixin(object):
         fields = list(kwargs.pop(FIELDS_PARAM, []))
         omit = list(kwargs.pop(OMIT_PARAM, []))
         parent = kwargs.pop("parent", None)
-
         super(FlexFieldsSerializerMixin, self).__init__(*args, **kwargs)
 
         self.parent = parent
         self.expanded_fields = []
         self._flex_fields_rep_applied = False
-
         self._flex_options_base = {
             "expand": expand,
             "fields": fields,
@@ -59,11 +60,57 @@ class FlexFieldsSerializerMixin(object):
                     + self._flex_options_rep_only["omit"],
         }
 
-    def to_representation(self, instance):
-        validated_data = super().to_representation(instance)
+    def to_representation(self, instance, flex_options=None):
+        validated_data = OrderedDict()
+        fields = self._readable_fields
+
+        for field in fields:
+            try:
+                attribute = field.get_attribute(instance)
+            except SkipField:
+                continue
+
+            # We skip `to_representation` for `None` values so that fields do
+            # not have to explicitly deal with that case.
+            #
+            # For related fields with `use_pk_only_optimization` we need to
+            # resolve the pk value.
+            check_for_none = attribute.pk if isinstance(attribute, PKOnlyObject) else attribute
+            if check_for_none is None:
+                validated_data[field.field_name] = None
+            else:
+                if isinstance(field, FlexFieldsSerializerMixin):
+                    _, next_expand_fields = split_levels(self._flex_options_rep_only['expand'])
+                    _, next_sparse_fields = split_levels(self._flex_options_rep_only['fields'])
+                    _, next_omit_fields = split_levels(self._flex_options_rep_only['omit'])
+                    flex_options_for_nested = {
+                        'expand': next_expand_fields.get(field.field_name, []),
+                        'fields': next_sparse_fields.get(field.field_name, []),
+                        'omit': next_omit_fields.get(field.field_name, [])
+                    }
+                    validated_data[field.field_name] = field.to_representation(attribute, flex_options_for_nested)
+                else:
+                    validated_data[field.field_name] = field.to_representation(attribute)
+
         if not self._flex_fields_rep_applied:
-            self.apply_flex_fields(self.fields, self._flex_options_rep_only)
+            if flex_options:
+                applying_options = {
+                    'expand': self._flex_options_rep_only['expand'] + flex_options['expand'],
+                    'fields': self._flex_options_rep_only['fields'] + flex_options['fields'],
+                    'omit': self._flex_options_rep_only['omit'] + flex_options['omit'],
+                }
+                fields_to_keep = self.apply_flex_fields(self.fields, applying_options)
+            else:
+                fields_to_keep = self.apply_flex_fields(self.fields, self._flex_options_rep_only)
+
+            answer = OrderedDict()
+            for key in validated_data:
+                if key in fields_to_keep:
+                    answer[key] = validated_data[key]
+
             self._flex_fields_rep_applied = True
+            return answer
+
         return validated_data
 
     def get_fields(self):
@@ -87,7 +134,6 @@ class FlexFieldsSerializerMixin(object):
         expand_fields, next_expand_fields = split_levels(flex_options["expand"])
         sparse_fields, next_sparse_fields = split_levels(flex_options["fields"])
         omit_fields, next_omit_fields = split_levels(flex_options["omit"])
-
         for field_name in self._get_fields_names_to_remove(
                 fields, omit_fields, sparse_fields, next_omit_fields
         ):
@@ -97,7 +143,6 @@ class FlexFieldsSerializerMixin(object):
                 expand_fields, omit_fields, sparse_fields, next_omit_fields
         ):
             self.expanded_fields.append(name)
-
             fields[name] = self._make_expanded_field_serializer(
                 name, next_expand_fields, next_sparse_fields, next_omit_fields
             )
@@ -273,7 +318,6 @@ class FlexFieldsSerializerMixin(object):
             return []
 
         values = self.context["request"].query_params.getlist(field)
-
         if not values:
             values = self.context["request"].query_params.getlist("{}[]".format(field))
 
