@@ -60,8 +60,12 @@ class FlexFieldsSerializerMixin(object):
                     + self._flex_options_rep_only["omit"],
         }
 
-    def to_representation(self, instance, flex_options=None):
-        validated_data = OrderedDict()
+    def to_representation(self, instance):
+        if not self._flex_fields_rep_applied:
+            self.apply_flex_fields(self.fields, self._flex_options_rep_only)
+            self._flex_fields_rep_applied = True
+
+        ret = OrderedDict()
         fields = self._readable_fields
 
         for field in fields:
@@ -77,41 +81,30 @@ class FlexFieldsSerializerMixin(object):
             # resolve the pk value.
             check_for_none = attribute.pk if isinstance(attribute, PKOnlyObject) else attribute
             if check_for_none is None:
-                validated_data[field.field_name] = None
+                ret[field.field_name] = None
             else:
                 if isinstance(field, FlexFieldsSerializerMixin):
-                    _, next_expand_fields = split_levels(self._flex_options_rep_only['expand'])
-                    _, next_sparse_fields = split_levels(self._flex_options_rep_only['fields'])
-                    _, next_omit_fields = split_levels(self._flex_options_rep_only['omit'])
-                    flex_options_for_nested = {
-                        'expand': next_expand_fields.get(field.field_name, []),
-                        'fields': next_sparse_fields.get(field.field_name, []),
-                        'omit': next_omit_fields.get(field.field_name, [])
-                    }
-                    validated_data[field.field_name] = field.to_representation(attribute, flex_options_for_nested)
-                else:
-                    validated_data[field.field_name] = field.to_representation(attribute)
+                    flex_options_for_nested = self.get_flex_options_for_nested(field)
+                    field.set_flex_options(flex_options_for_nested)
 
-        if not self._flex_fields_rep_applied:
-            if flex_options:
-                applying_options = {
-                    'expand': self._flex_options_rep_only['expand'] + flex_options['expand'],
-                    'fields': self._flex_options_rep_only['fields'] + flex_options['fields'],
-                    'omit': self._flex_options_rep_only['omit'] + flex_options['omit'],
-                }
-                fields_to_keep = self.apply_flex_fields(self.fields, applying_options)
-            else:
-                fields_to_keep = self.apply_flex_fields(self.fields, self._flex_options_rep_only)
+                ret[field.field_name] = field.to_representation(attribute)
 
-            answer = OrderedDict()
-            for key in validated_data:
-                if key in fields_to_keep:
-                    answer[key] = validated_data[key]
+        return ret
 
-            self._flex_fields_rep_applied = True
-            return answer
+    def get_flex_options_for_nested(self, field):
+        _, next_expand_fields = split_levels(self._flex_options_rep_only['expand'])
+        _, next_sparse_fields = split_levels(self._flex_options_rep_only['fields'])
+        _, next_omit_fields = split_levels(self._flex_options_rep_only['omit'])
+        return {
+            'expand': next_expand_fields.get(field.field_name, []),
+            'fields': next_sparse_fields.get(field.field_name, []),
+            'omit': next_omit_fields.get(field.field_name, [])
+        }
 
-        return validated_data
+    def set_flex_options(self, parent_flex_options):
+        self._flex_options_rep_only['expand'] += parent_flex_options['expand']
+        self._flex_options_rep_only['fields'] += parent_flex_options['fields']
+        self._flex_options_rep_only['omit'] += parent_flex_options['omit']
 
     def get_fields(self):
         if not hasattr(self, '_undeclared_fields'):
