@@ -23,6 +23,9 @@ def is_included(request, field: str) -> bool:
         set, and it is not among them, or because `omit` is set and
         it is among them.
     """
+    if request.method != 'GET':
+        return True
+
     sparse_value = request.query_params.get(FIELDS_PARAM)
     omit_value = request.query_params.get(OMIT_PARAM)
     sparse_fields, omit_fields = [], []
