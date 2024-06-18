@@ -37,6 +37,7 @@ class FlexFieldsSerializerMixin(object):
         self.parent = parent
         self.expanded_fields = []
         self._flex_fields_rep_applied = False
+        self._is_set_flex_options = False
         self._flex_options_base = {
             "expand": expand,
             "fields": fields,
@@ -83,9 +84,10 @@ class FlexFieldsSerializerMixin(object):
             if check_for_none is None:
                 ret[field.field_name] = None
             else:
-                if isinstance(field, FlexFieldsSerializerMixin):
+                if isinstance(field, FlexFieldsSerializerMixin) and not self._is_set_flex_options:
                     flex_options_for_nested = self.get_flex_options_for_nested(field)
                     field.set_flex_options(flex_options_for_nested)
+                    self._is_set_flex_options = True
 
                 ret[field.field_name] = field.to_representation(attribute)
 
