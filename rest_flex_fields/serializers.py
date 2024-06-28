@@ -69,6 +69,7 @@ class FlexFieldsSerializerMixin(object):
         ret = OrderedDict()
         fields = self._readable_fields
 
+        _is_set_flex_options = False
         for field in fields:
             try:
                 attribute = field.get_attribute(instance)
@@ -87,9 +88,12 @@ class FlexFieldsSerializerMixin(object):
                 if isinstance(field, FlexFieldsSerializerMixin) and not self._is_set_flex_options:
                     flex_options_for_nested = self.get_flex_options_for_nested(field)
                     field.set_flex_options(flex_options_for_nested)
-                    self._is_set_flex_options = True
+                    _is_set_flex_options = True
 
                 ret[field.field_name] = field.to_representation(attribute)
+
+        if not self._is_set_flex_options and _is_set_flex_options:
+            self._is_set_flex_options = True
 
         return ret
 
