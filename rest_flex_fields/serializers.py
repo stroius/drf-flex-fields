@@ -73,7 +73,7 @@ class FlexFieldsSerializerMixin(object):
         for field in fields:
             try:
                 attribute = field.get_attribute(instance)
-            except SkipField:
+            except (SkipField, KeyError):
                 continue
 
             # We skip `to_representation` for `None` values so that fields do
